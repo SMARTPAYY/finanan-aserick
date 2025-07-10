@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FinançasErick - Controle Financeiro Pessoal</title>
+
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <!-- Lucide Icons CDN (CORRIGIDO) -->
+    <script src="https://unpkg.com/lucide@0.292.0/dist/lucide.min.js"></script>
+
+    <!-- Google Fonts: Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <style>
+        /* Estilo base para usar a fonte Inter */
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f0f2f5; /* Fundo cinza claro para um visual suave */
+        }
+        /* Animação suave para os modais */
+        .modal-enter {
+            animation: fadeIn 0.3s ease-out;
+        }
+        .modal-leave {
+            animation: fadeOut 0.3s ease-in;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: scale(0.95); }
+            to { opacity: 1; transform: scale(1); }
+        }
+        @keyframes fadeOut {
+            from { opacity: 1; transform: scale(1); }
+            to { opacity: 0; transform: scale(0.95); }
+        }
+    </style>
+</head>
+<body class="text-gray-800">
+
+    <!-- Container Principal -->
+    <div class="container mx-auto max-w-5xl p-4 sm:p-6 lg:p-8">
+
+        <!-- Cabeçalho -->
+        <header class="flex justify-between items-center mb-8">
+            <div class="flex items-center gap-3">
+                <div class="bg-blue-600 p-2 rounded-lg">
+                    <svg data-lucide="wallet" class="text-white" width="24" height="24"></svg>
+                </div>
+                <h1 class="text-2xl sm:text-3xl font-bold text-gray-800">FinançasErick</h1>
+            </div>
+            <button id="add-transaction-btn" class="bg-blue-600 text-white font-semibold px-4 py-2 rounded-lg shadow-md hover:bg-blue-700 transition-colors flex items-center gap-2">
+                <svg data-lucide="plus" width="20" height="20"></svg>
+                <span class="hidden sm:inline">Nova Transação</span>
+            </button>
+        </header>
+
+        <main>
+            <!-- Seção de Resumo (Cards) -->
+            <section id="summary" class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
+                <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-200">
+                    <div class="flex items-center gap-3 mb-2">
+                        <div class="p-2 bg-green-100 rounded-full">
+                           <svg data-lucide="arrow-up-circle" class="text-green-600" width="24" height="24"></svg>
+                        </div>
+                        <h2 class="text-gray-500">Receitas</h2>
+                    </div>
+                    <p id="total-income" class="text-2xl font-semibold text-green-600">R$ 0,00</p>
+                </div>
+                <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-200">
+                    <div class="flex items-center gap-3 mb-2">
+                        <div class="p-2 bg-red-100 rounded-full">
+                           <svg data-lucide="arrow-down-circle" class="text-red-600" width="24" height="24"></svg>
+                        </div>
+                        <h2 class="text-gray-500">Despesas</h2>
+                    </div>
+                    <p id="total-expense" class="text-2xl font-semibold text-red-600">R$ 0,00</p>
+                </div>
+                <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-200">
+                    <div class="flex items-center gap-3 mb-2">
+                        <div class="p-2 bg-blue-100 rounded-full">
+                           <svg data-lucide="scale" class="text-blue-600" width="24" height="24"></svg>
+                        </div>
+                        <h2 class="text-gray-500">Saldo</h2>
+                    </div>
+                    <p id="balance" class="text-2xl font-semibold text-blue-600">R$ 0,00</p>
+                </div>
+            </section>
+
+            <!-- Seção de Gráfico e Transações -->
+            <section class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <!-- Gráfico -->
+                <div class="lg:col-span-1 bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+                    <h3 class="text-lg font-semibold mb-4">Despesas por Categoria</h3>
+                    <div class="relative h-64" id="chart-container">
+                        <canvas id="expense-chart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Lista de Transações -->
+                <div class="lg:col-span-2 bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+                    <h3 class="text-lg font-semibold mb-4">Histórico de Transações</h3>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left">
+                            <thead class="text-gray-500">
+                                <tr>
+                                    <th class="p-3 font-medium">Descrição</th>
+                                    <th class="p-3 font-medium">Valor</th>
+                                    <th class="p-3 font-medium hidden sm:table-cell">Categoria</th>
+                                    <th class="p-3 font-medium hidden md:table-cell">Data</th>
+                                    <th class="p-3 font-medium text-right">Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody id="transaction-list">
+                                <!-- As transações serão inseridas aqui via JS -->
+                            </tbody>
+                        </table>
+                        <div id="empty-state" class="text-center py-10 text-gray-500 hidden">
+                            <svg data-lucide="folder-open" class="mx-auto mb-4 text-gray-400" width="48" height="48"></svg>
+                            <p>Nenhuma transação registrada.</p>
+                            <p class="text-sm">Clique em "Nova Transação" para começar.</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Modal para Adicionar/Editar Transação -->
+    <div id="transaction-modal" class="fixed inset-0 bg-gray-900 bg-opacity-60 flex items-center justify-center p-4 hidden z-50">
+        <div id="modal-content" class="bg-white rounded-xl shadow-2xl w-full max-w-md p-6 modal-enter">
+            <div class="flex justify-between items-center mb-6">
+                <h2 id="modal-title" class="text-xl font-bold">Nova Transação</h2>
+                <button id="close-modal-btn" class="text-gray-500 hover:text-gray-800">
+                    <svg data-lucide="x" width="24" height="24"></svg>
+                </button>
+            </div>
+            <form id="transaction-form">
+                <input type="hidden" id="transaction-id">
+                
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Tipo</label>
+                    <div class="flex gap-4">
+                        <label class="flex-1">
+                            <input type="radio" name="type" value="income" class="sr-only peer" checked>
+                            <div class="p-3 text-center rounded-lg border-2 border-gray-200 cursor-pointer peer-checked:border-green-500 peer-checked:text-green-600 peer-checked:font-semibold">Receita</div>
+                        </label>
+                        <label class="flex-1">
+                            <input type="radio" name="type" value="expense" class="sr-only peer">
+                            <div class="p-3 text-center rounded-lg border-2 border-gray-200 cursor-pointer peer-checked:border-red-500 peer-checked:text-red-600 peer-checked:font-semibold">Despesa</div>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="mb-4">
+                    <label for="description" class="block text-sm font-medium text-gray-700">Descrição</label>
+                    <input type="text" id="description" name="description" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" required placeholder="Ex: Salário, Aluguel">
+                </div>
+
+                <div class="mb-4">
+                    <label for="amount" class="block text-sm font-medium text-gray-700">Valor</label>
+                    <div class="relative">
+                        <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+                            <span class="text-gray-500 sm:text-sm">R$</span>
+                        </div>
+                        <input type="number" id="amount" name="amount" step="0.01" class="mt-1 block w-full pl-10 pr-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" required placeholder="0,00">
+                    </div>
+                </div>
+
+                <div class="mb-4">
+                    <label for="category" class="block text-sm font-medium text-gray-700">Categoria</label>
+                    <select id="category" name="category" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" required>
+                        <option value="Moradia">Moradia</option>
+                        <option value="Transporte">Transporte</option>
+                        <option value="Alimentação">Alimentação</option>
+                        <option value="Lazer">Lazer</option>
+                        <option value="Saúde">Saúde</option>
+                        <option value="Salário">Salário</option>
+                        <option value="Investimentos">Investimentos</option>
+                        <option value="Outros">Outros</option>
+                    </select>
+                </div>
+
+                <div class="mb-6">
+                    <label for="date" class="block text-sm font-medium text-gray-700">Data</label>
+                    <input type="date" id="date" name="date" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" required>
+                </div>
+
+                <div class="flex justify-end gap-4">
+                    <button type="button" id="cancel-btn" class="px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition-colors">Cancelar</button>
+                    <button type="submit" class="px-4 py-2 bg-blue-600 text-white font-semibold rounded-lg shadow-md hover:bg-blue-700 transition-colors">Salvar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal de Confirmação de Exclusão -->
+    <div id="confirm-modal" class="fixed inset-0 bg-gray-900 bg-opacity-60 flex items-center justify-center p-4 hidden z-50">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-sm p-6 modal-enter text-center">
+            <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100 mb-4">
+                <svg data-lucide="alert-triangle" class="h-6 w-6 text-red-600"></svg>
+            </div>
+            <h3 class="text-lg font-medium text-gray-900">Excluir Transação</h3>
+            <p id="confirm-message" class="mt-2 text-sm text-gray-500">Tem certeza que deseja excluir esta transação? Esta ação não pode ser desfeita.</p>
+            <div class="mt-6 flex justify-center gap-4">
+                <button id="confirm-cancel-btn" class="px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition-colors">Cancelar</button>
+                <button id="confirm-delete-btn" class="px-4 py-2 bg-red-600 text-white font-semibold rounded-lg shadow-md hover:bg-red-700 transition-colors">Excluir</button>
+            </div>
+        </div>
+    </div>
+
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // --- ELEMENTOS DO DOM ---
+            const addTransactionBtn = document.getElementById('add-transaction-btn');
+            const modal = document.getElementById('transaction-modal');
+            const modalContent = document.getElementById('modal-content');
+            const closeModalBtn = document.getElementById('close-modal-btn');
+            const cancelBtn = document.getElementById('cancel-btn');
+            const transactionForm = document.getElementById('transaction-form');
+            const modalTitle = document.getElementById('modal-title');
+            const transactionList = document.getElementById('transaction-list');
+            const emptyState = document.getElementById('empty-state');
+            
+            // Modal de confirmação
+            const confirmModal = document.getElementById('confirm-modal');
+            const confirmDeleteBtn = document.getElementById('confirm-delete-btn');
+            const confirmCancelBtn = document.getElementById('confirm-cancel-btn');
+
+            // Cards de resumo
+            const totalIncomeEl = document.getElementById('total-income');
+            const totalExpenseEl = document.getElementById('total-expense');
+            const balanceEl = document.getElementById('balance');
+
+            // Campos do formulário
+            const transactionIdInput = document.getElementById('transaction-id');
+            const descriptionInput = document.getElementById('description');
+            const amountInput = document.getElementById('amount');
+            const categoryInput = document.getElementById('category');
+            const dateInput = document.getElementById('date');
+
+            // Gráfico
+            const chartContainer = document.getElementById('chart-container');
+            let expenseChart;
+
+            // --- ESTADO DA APLICAÇÃO ---
+            let transactions = JSON.parse(localStorage.getItem('transactions')) || [];
+            let editingId = null;
+            let transactionToDeleteId = null;
+
+            // --- FUNÇÕES ---
+
+            const formatCurrency = (value) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
+
+            const renderTransactions = () => {
+                transactionList.innerHTML = '';
+                emptyState.classList.toggle('hidden', transactions.length > 0);
+
+                if (transactions.length === 0) return;
+
+                transactions.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+                transactions.forEach(t => {
+                    const isExpense = t.type === 'expense';
+                    const row = document.createElement('tr');
+                    row.className = 'border-b border-gray-200 hover:bg-gray-50';
+                    row.innerHTML = `
+                        <td class="p-3">
+                            <p class="font-semibold">${t.description}</p>
+                            <p class="text-sm text-gray-500 sm:hidden">${t.category} - ${new Date(t.date).toLocaleDateString('pt-BR', {timeZone: 'UTC'})}</p>
+                        </td>
+                        <td class="p-3 font-semibold ${isExpense ? 'text-red-500' : 'text-green-500'}">
+                            ${isExpense ? '-' : '+'} ${formatCurrency(t.amount)}
+                        </td>
+                        <td class="p-3 text-gray-600 hidden sm:table-cell">${t.category}</td>
+                        <td class="p-3 text-gray-600 hidden md:table-cell">${new Date(t.date).toLocaleDateString('pt-BR', {timeZone: 'UTC'})}</td>
+                        <td class="p-3 text-right">
+                            <button data-id="${t.id}" class="edit-btn p-2 text-gray-500 hover:text-blue-600">
+                                <svg data-lucide="pencil" width="16" height="16"></svg>
+                            </button>
+                            <button data-id="${t.id}" class="delete-btn p-2 text-gray-500 hover:text-red-600">
+                                <svg data-lucide="trash-2" width="16" height="16"></svg>
+                            </button>
+                        </td>
+                    `;
+                    transactionList.appendChild(row);
+                });
+                lucide.createIcons();
+            };
+
+            const updateSummary = () => {
+                const income = transactions.filter(t => t.type === 'income').reduce((acc, t) => acc + t.amount, 0);
+                const expense = transactions.filter(t => t.type === 'expense').reduce((acc, t) => acc + t.amount, 0);
+                const balance = income - expense;
+
+                totalIncomeEl.textContent = formatCurrency(income);
+                totalExpenseEl.textContent = formatCurrency(expense);
+                balanceEl.textContent = formatCurrency(balance);
+                
+                balanceEl.className = 'text-2xl font-semibold'; // Reset classes
+                if (balance < 0) balanceEl.classList.add('text-red-600');
+                else if (balance > 0) balanceEl.classList.add('text-green-600');
+                else balanceEl.classList.add('text-blue-600');
+            };
+            
+            const renderChart = () => {
+                const expenseByCategory = transactions
+                    .filter(t => t.type === 'expense')
+                    .reduce((acc, t) => {
+                        acc[t.category] = (acc[t.category] || 0) + t.amount;
+                        return acc;
+                    }, {});
+
+                const labels = Object.keys(expenseByCategory);
+                const data = Object.values(expenseByCategory);
+
+                if (expenseChart) expenseChart.destroy();
+                
+                chartContainer.innerHTML = '<canvas id="expense-chart"></canvas>'; // Reset canvas container
+                const chartCanvas = document.getElementById('expense-chart').getContext('2d');
+
+                if (labels.length === 0) {
+                    chartContainer.innerHTML += '<div class="absolute inset-0 flex items-center justify-center text-gray-400 text-sm p-4 text-center">Sem dados de despesa para exibir no gráfico</div>';
+                    return;
+                }
+
+                expenseChart = new Chart(chartCanvas, {
+                    type: 'doughnut',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            label: 'Despesas',
+                            data: data,
+                            backgroundColor: ['#ef4444', '#3b82f6', '#10b981', '#f97316', '#8b5cf6', '#eab308', '#64748b'],
+                            borderColor: '#ffffff',
+                            borderWidth: 2
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { position: 'bottom', labels: { boxWidth: 12, padding: 20 } }
+                        }
+                    }
+                });
+            };
+
+            const saveToLocalStorage = () => localStorage.setItem('transactions', JSON.stringify(transactions));
+
+            const openModal = (id = null) => {
+                transactionForm.reset();
+                dateInput.value = new Date().toISOString().split('T')[0];
+                
+                editingId = id;
+                if (id) {
+                    const t = transactions.find(t => t.id === id);
+                    modalTitle.textContent = 'Editar Transação';
+                    transactionIdInput.value = t.id;
+                    descriptionInput.value = t.description;
+                    amountInput.value = t.amount;
+                    categoryInput.value = t.category;
+                    dateInput.value = t.date;
+                    document.querySelector(`input[name="type"][value="${t.type}"]`).checked = true;
+                } else {
+                    modalTitle.textContent = 'Nova Transação';
+                    transactionIdInput.value = '';
+                }
+                
+                modal.classList.remove('hidden');
+                modalContent.classList.remove('modal-leave');
+                modalContent.classList.add('modal-enter');
+            };
+
+            const closeModal = () => {
+                modalContent.classList.remove('modal-enter');
+                modalContent.classList.add('modal-leave');
+                setTimeout(() => modal.classList.add('hidden'), 300);
+            };
+            
+            const openConfirmModal = (id) => {
+                transactionToDeleteId = id;
+                confirmModal.classList.remove('hidden');
+            };
+
+            const closeConfirmModal = () => {
+                transactionToDeleteId = null;
+                confirmModal.classList.add('hidden');
+            };
+
+            const handleFormSubmit = (e) => {
+                e.preventDefault();
+                const newTransaction = {
+                    id: editingId || crypto.randomUUID(),
+                    description: descriptionInput.value.trim(),
+                    amount: parseFloat(amountInput.value),
+                    type: document.querySelector('input[name="type"]:checked').value,
+                    category: categoryInput.value,
+                    date: dateInput.value,
+                };
+
+                if (editingId) {
+                    const index = transactions.findIndex(t => t.id === editingId);
+                    transactions[index] = newTransaction;
+                } else {
+                    transactions.push(newTransaction);
+                }
+                saveToLocalStorage();
+                updateAll();
+                closeModal();
+            };
+
+            const handleListClick = (e) => {
+                const editBtn = e.target.closest('.edit-btn');
+                if (editBtn) openModal(editBtn.dataset.id);
+
+                const deleteBtn = e.target.closest('.delete-btn');
+                if (deleteBtn) openConfirmModal(deleteBtn.dataset.id);
+            };
+
+            const handleDeleteConfirm = () => {
+                if (transactionToDeleteId) {
+                    transactions = transactions.filter(t => t.id !== transactionToDeleteId);
+                    saveToLocalStorage();
+                    updateAll();
+                    closeConfirmModal();
+                }
+            };
+            
+            const updateAll = () => {
+                renderTransactions();
+                updateSummary();
+                renderChart();
+            };
+
+            // --- EVENT LISTENERS ---
+            addTransactionBtn.addEventListener('click', () => openModal());
+            closeModalBtn.addEventListener('click', closeModal);
+            cancelBtn.addEventListener('click', closeModal);
+            transactionForm.addEventListener('submit', handleFormSubmit);
+            transactionList.addEventListener('click', handleListClick);
+            
+            // Listeners do modal de confirmação
+            confirmDeleteBtn.addEventListener('click', handleDeleteConfirm);
+            confirmCancelBtn.addEventListener('click', closeConfirmModal);
+
+            modal.addEventListener('click', (e) => { if (e.target === modal) closeModal(); });
+            confirmModal.addEventListener('click', (e) => { if (e.target === confirmModal) closeConfirmModal(); });
+
+            // --- INICIALIZAÇÃO ---
+            lucide.createIcons();
+            updateAll();
+        });
+    </script>
+</body>
+</html>
